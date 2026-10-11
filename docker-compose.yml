@@ -1,0 +1,16 @@
+
+services:
+  worker1:
+    build: .
+    shm_size: 1gb
+    command: ["npx", "cypress", "run", "--spec", "cypress/e2e/login.cy.js"]
+
+  worker2:
+    build: .
+    shm_size: 1gb
+    command: ["npx", "cypress", "run", "--spec", "cypress/e2e/forms.cy.js"]
+
+  worker3:
+    build: .
+    shm_size: 1gb
+    command: ["npx", "cypress", "run", "--spec", "cypress/e2e/validation.cy.js"]
