@@ -6,7 +6,8 @@ const crypto = require('crypto');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3001);
-const ROOT = __dirname;
+// ROOT now points to project root (parent of src)
+const ROOT = path.resolve(__dirname, '..');
 const SPECS_DIR = path.join(ROOT, 'cypress', 'e2e');
 const REPORTS_DIR = path.join(ROOT, 'reports');
 const IMAGE = process.env.CYPRESS_WORKER_IMAGE || 'cypress-demo:latest';
@@ -24,7 +25,10 @@ const clients = new Set();
 
 function loadLatestRun() {
   const files = fs.readdirSync(REPORTS_DIR).filter(n => /^.+\.json$/.test(n));
-  const runs = files.map(name => { try { return JSON.parse(fs.readFileSync(path.join(REPORTS_DIR, name), 'utf8')); } catch { return null; } }).filter(Boolean);
+  const runs = files.map(name => {
+    try { return JSON.parse(fs.readFileSync(path.join(REPORTS_DIR, name), 'utf8')); }
+    catch { return null; }
+  }).filter(Boolean);
   runs.sort((a,b) => new Date(b.startedAt || 0) - new Date(a.startedAt || 0));
   const latest = runs[0] || null;
   if (latest?.status === 'running') {
@@ -157,9 +161,11 @@ function dispatch(worker) {
   const child = spawn('docker', args, {cwd:ROOT, stdio:['ignore','pipe','pipe']}); worker.child = child;
   let buffer = '';
   const consume = chunk => { buffer += chunk.toString(); const lines = buffer.split(/\r?\n/); buffer = lines.pop() || ''; for (const line of lines) parseWorkerLine(line, worker); };
-  child.stdout.on('data', consume); child.stderr.on('data', consume);
+  child.stdout.on('data', consume);
+  child.stderr.on('data', consume);
   child.on('error', error => {
-    log(`Could not start Docker worker: ${error.message}`, worker.id); next.status='failed'; next.error=error.message; next.finishedAt=new Date().toISOString();
+    log(`Could not start Docker worker: ${error.message}`, worker.id);
+    next.status='failed'; next.error=error.message; next.finishedAt=new Date().toISOString();
     worker.status='idle'; worker.finishedAt=next.finishedAt; worker.lastExitCode=127; worker.child=null; saveRun(currentRun); emit('worker-updated'); dispatch(worker);
   });
   child.on('close', code => {
@@ -175,7 +181,8 @@ function dispatch(worker) {
 function startRun(workerLimit, retries) {
   const paths = findSpecs(); if (!paths.length) throw new Error(`No Cypress spec files found under ${SPECS_DIR}`);
   const id = `${new Date().toISOString().replace(/[:.]/g,'-')}-${crypto.randomBytes(3).toString('hex')}`;
-  const runDir = path.join(REPORTS_DIR,id); fs.mkdirSync(path.join(runDir,'artifacts'),{recursive:true});
+  const runDir = path.join(REPORTS_DIR,id);
+  fs.mkdirSync(path.join(runDir,'artifacts'),{recursive:true});
   currentRun = { id, status:'running', startedAt:new Date().toISOString(), finishedAt:null, workerLimit, retries,
     stats:{total:0,passed:0,failed:0,pending:0,flaky:0,retried:0}, tests:[],
     specs:paths.map(p=>({path:p,status:'queued',startedAt:null,finishedAt:null,exitCode:null,error:null,artifacts:[]})),
@@ -212,3 +219,4 @@ app.post('/api/run',(req,res)=>{
   try{startRun(workers,retries);res.status(202).json({id:currentRun.id});}catch(error){res.status(400).json({error:error.message});}
 });
 app.listen(PORT,'0.0.0.0',()=>{console.log(`Cypress dashboard listening on http://localhost:${PORT}`);console.log(`Docker image: ${IMAGE}; workers: ${DEFAULT_WORKERS}; saved history: ${REPORTS_DIR}`);});
+

@@ -1,16 +1,22 @@
 
 services:
   worker1:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     shm_size: 1gb
     command: ["npx", "cypress", "run", "--spec", "cypress/e2e/login.cy.js"]
 
   worker2:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     shm_size: 1gb
     command: ["npx", "cypress", "run", "--spec", "cypress/e2e/forms.cy.js"]
 
   worker3:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     shm_size: 1gb
     command: ["npx", "cypress", "run", "--spec", "cypress/e2e/validation.cy.js"]
